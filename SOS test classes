@@ -1,0 +1,159 @@
+// SOSActivityTest.java (Instrumented test)
+package com.example.sosemergency;
+
+import android.content.Intent;
+
+import androidx.test.core.app.ActivityScenario;
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.rule.ActivityTestRule;
+
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+@RunWith(AndroidJUnit4.class)
+public class SOSActivityTest {
+
+    @Rule
+    public ActivityTestRule<SOSActivity> activityRule = 
+            new ActivityTestRule<>(SOSActivity.class, true, false);
+
+    private Intent testIntent;
+
+    @Before
+    public void setup() {
+        testIntent = new Intent(ApplicationProvider.getApplicationContext(), SOSActivity.class);
+        testIntent.putExtra("testMode", true);
+    }
+
+    @Test
+    public void testCountdownInitiatesCorrectly() {
+        activityRule.launchActivity(testIntent);
+        
+        // Verify the initial countdown text
+        onView(withId(R.id.status_text))
+                .check(matches(withText("Sending emergency alerts in: 5 seconds")));
+    }
+
+    @Test
+    public void testCancelButtonStopsProcess() {
+        activityRule.launchActivity(testIntent);
+        
+        // Click cancel button
+        onView(withId(R.id.cancel_button)).perform(click());
+        
+        // Activity should finish after cancel - we can't directly test this in Espresso
+        // but we can ensure the activity is finishing
+        assertTrue(activityRule.getActivity().isFinishing());
+    }
+}
+
+// SOSFunctionalUnitTest.java (Local unit test)
+package com.example.sosemergency;
+
+import android.location.Location;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+
+public class SOSFunctionalUnitTest {
+
+    @Mock
+    private Location mockLocation;
+
+    private TestEmergencyContactProvider contactProvider;
+    private TestMessageSender messageSender;
+    private TestEmergencyDialer emergencyDialer;
+    private TestLocationProvider locationProvider;
+
+    @Before
+    public void setup() {
+        MockitoAnnotations.initMocks(this);
+        
+        contactProvider = new TestEmergencyContactProvider();
+        messageSender = new TestMessageSender();
+        emergencyDialer = new TestEmergencyDialer();
+        locationProvider = new TestLocationProvider();
+    }
+
+    @Test
+    public void testEmergencyContactProvider() {
+        List<EmergencyContact> contacts = contactProvider.getEmergencyContacts();
+        
+        assertEquals(2, contacts.size());
+        assertEquals("Test Police", contacts.get(0).getName());
+        assertEquals("000", contacts.get(0).getPhoneNumber());
+        assertTrue(contacts.get(0).isPrimary());
+    }
+
+    @Test
+    public void testSuccessfulMessageSending() {
+        List<EmergencyContact> contacts = contactProvider.getEmergencyContacts();
+        String testMessage = "TEST EMERGENCY";
+        
+        messageSender.setShouldSucceed(true);
+        boolean result = messageSender.sendEmergencyMessages(contacts, testMessage);
+        
+        assertTrue(result);
+        assertEquals(2, messageSender.getSentMessages().size());
+        assertTrue(messageSender.getSentMessages().get(0).contains(testMessage));
+    }
+
+    @Test
+    public void testFailedMessageSending() {
+        List<EmergencyContact> contacts = contactProvider.getEmergencyContacts();
+        String testMessage = "TEST EMERGENCY";
+        
+        messageSender.setShouldSucceed(false);
+        boolean result = messageSender.sendEmergencyMessages(contacts, testMessage);
+        
+        assertFalse(result);
+        assertEquals(0, messageSender.getSentMessages().size());
+    }
+
+    @Test
+    public void testEmergencyDialer() {
+        String testNumber = "123456789";
+        
+        emergencyDialer.setShouldSucceed(true);
+        boolean result = emergencyDialer.callEmergencyNumber(testNumber);
+        
+        assertTrue(result);
+        assertEquals(testNumber, emergencyDialer.getLastCalledNumber());
+    }
+
+    @Test
+    public void testLocationProvider() {
+        Location location = locationProvider.getCurrentLocation();
+        
+        assertEquals(10.762622, location.getLatitude(), 0.0001);
+        assertEquals(106.660172, location.getLongitude(), 0.0001);
+        
+        // Test setting new location
+        locationProvider.setMockLocation(20.123456, 105.654321);
+        location = locationProvider.getCurrentLocation();
+        
+        assertEquals(20.123456, location.getLatitude(), 0.0001);
+        assertEquals(105.654321, location.getLongitude(), 0.0001);
+    }
+}
