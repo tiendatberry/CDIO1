@@ -1,0 +1,92 @@
+// TestEmergencyContactProvider.java
+package com.example.sosemergency;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class TestEmergencyContactProvider implements EmergencyContactProvider {
+    @Override
+    public List<EmergencyContact> getEmergencyContacts() {
+        List<EmergencyContact> contacts = new ArrayList<>();
+        contacts.add(new EmergencyContact("Test Police", "000", true));
+        contacts.add(new EmergencyContact("Test Hospital", "000", false));
+        return contacts;
+    }
+}
+
+// TestMessageSender.java
+package com.example.sosemergency;
+
+import java.util.List;
+
+public class TestMessageSender implements MessageSender {
+    private boolean shouldSucceed = true;
+    private List<String> sentMessages = new ArrayList<>();
+    
+    public void setShouldSucceed(boolean shouldSucceed) {
+        this.shouldSucceed = shouldSucceed;
+    }
+    
+    public List<String> getSentMessages() {
+        return sentMessages;
+    }
+    
+    @Override
+    public boolean sendEmergencyMessages(List<EmergencyContact> contacts, String message) {
+        if (shouldSucceed) {
+            for (EmergencyContact contact : contacts) {
+                sentMessages.add("To: " + contact.getPhoneNumber() + " - " + message);
+            }
+            return true;
+        }
+        return false;
+    }
+}
+
+// TestEmergencyDialer.java
+package com.example.sosemergency;
+
+public class TestEmergencyDialer implements EmergencyDialer {
+    private boolean shouldSucceed = true;
+    private String lastCalledNumber;
+    
+    public void setShouldSucceed(boolean shouldSucceed) {
+        this.shouldSucceed = shouldSucceed;
+    }
+    
+    public String getLastCalledNumber() {
+        return lastCalledNumber;
+    }
+    
+    @Override
+    public boolean callEmergencyNumber(String phoneNumber) {
+        this.lastCalledNumber = phoneNumber;
+        return shouldSucceed;
+    }
+}
+
+// TestLocationProvider.java
+package com.example.sosemergency;
+
+import android.location.Location;
+
+public class TestLocationProvider implements LocationProvider {
+    private Location mockLocation;
+    
+    public TestLocationProvider() {
+        // Create a mock location
+        mockLocation = new Location("test_provider");
+        mockLocation.setLatitude(10.762622);
+        mockLocation.setLongitude(106.660172);
+    }
+    
+    public void setMockLocation(double latitude, double longitude) {
+        mockLocation.setLatitude(latitude);
+        mockLocation.setLongitude(longitude);
+    }
+    
+    @Override
+    public Location getCurrentLocation() {
+        return mockLocation;
+    }
+}
